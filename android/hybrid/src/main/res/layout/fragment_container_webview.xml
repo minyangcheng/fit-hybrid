@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.min.hybrid.library.widget.NavigationBar
+        android:id="@+id/view_nb"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#f2f2f2">
+
+        <com.min.hybrid.library.container.HybridWebView
+            android:id="@+id/wv"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.min.hybrid.library.widget.WebViewProgressBar
+            android:id="@+id/pb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="invisible"
+            app:max="100"
+            app:progress_color="#0AC416"
+            app:progress_height="3dp" />
+
+        <include layout="@layout/layout_error" />
+
+    </FrameLayout>
+
+</LinearLayout>

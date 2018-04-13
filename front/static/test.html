@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<script>
+  const quick = {};
+
+  quick.os = {
+    quick: false,
+  };
+  /**
+   * 存放所有的代理 api对象
+   * 每一个命名空间下的每一个os都可以执行
+   * proxyapi[namespace][os]
+   */
+  const proxysApis = {};
+  // 支持的所有环境
+  const supportOsArray = ['quick', 'h5'];
+
+  function getCurrProxyApiOs(currOs) {
+    console.log('getCurrProxyApiOs->')
+    console.log(currOs)
+    for (let i = 0, len = supportOsArray.length; i < len; i += 1) {
+      if (currOs[supportOsArray[i]]) {
+        return supportOsArray[i];
+      }
+    }
+
+    // 默认是h5
+    return 'h5';
+  }
+
+  // 如获取quick.ui.alert
+  function getModuleApiParentByNameSpace(module, namespace) {
+    let apiParent = module;
+    // 只取命名空间的父级,如果仅仅是xxx，是没有父级的
+    const parentNamespaceArray = /[.]/.test(namespace) ? namespace.replace(/[.][^.]+$/, '').split('.') : [];
+
+    parentNamespaceArray.forEach(function(item){
+      apiParent[item] = apiParent[item] || {};
+    apiParent = apiParent[item];
+  });
+    return apiParent;
+  }
+
+  function proxyApiNamespace(apiParent, apiName, finalNameSpace) {
+    console.log("proxyApiNamespace->")
+    console.log(apiParent)
+    console.log(Object.prototype.toString.call(apiParent))
+    console.log(apiName)
+    console.log(finalNameSpace)
+    // 代理API，将apiParent里的apiName代理到Proxy执行
+    Object.defineProperty(apiParent, apiName, {
+      configurable: true,
+      enumerable: true,
+      get: function proxyGetter() {
+        // 确保get得到的函数一定是能执行的
+        const nameSpaceApi = proxysApis[finalNameSpace];
+
+        // 得到当前是哪一个环境，获得对应环境下的代理对象
+        return nameSpaceApi[getCurrProxyApiOs(quick.os)] || nameSpaceApi.h5;
+      },
+      set: function proxySetter() {
+        alert('不允许修改quick API');
+      },
+    });
+  }
+
+  function extendApi(moduleName, apiParam) {
+    if (!apiParam || !apiParam.namespace) {
+      return;
+    }
+
+    if (!quick[moduleName]) {
+      quick[moduleName] = {};
+    }
+
+    const api = apiParam;
+    const modlue = quick[moduleName];
+    const apiNamespace = api.namespace;
+    const apiParent = getModuleApiParentByNameSpace(modlue, apiNamespace);
+    // 最终的命名空间是包含模块的
+    const finalNameSpace = moduleName + '.' + apiNamespace;
+    // 如果仅仅是xxx，直接取xxx，如果aa.bb，取bb
+    const apiName = /[.]/.test(apiNamespace) ? api.namespace.match(/[.][^.]+$/)[0].substr(1) : apiNamespace;
+
+    // 这里防止触发代理，就不用apiParent[apiName]了，而是用proxysApis[finalNameSpace]
+    if (!proxysApis[finalNameSpace]) {
+      // 如果还没有代理这个API的命名空间，代理之，只需要设置一次代理即可
+      proxyApiNamespace(apiParent, apiName, finalNameSpace);
+    }
+
+    // 一个新的API代理，会替换以前API命名空间中对应的内容
+    const apiRuncode = api.runCode;
+    const oldProxyNamespace = proxysApis[finalNameSpace] || {};
+
+    proxysApis[finalNameSpace] = {};
+
+    supportOsArray.forEach(function(osTmp){
+      if (api.os && api.os.indexOf(osTmp) !== -1) {
+        // 如果存在这个os，并且合法，重新定义
+        proxysApis[finalNameSpace][osTmp] = apiRuncode;
+      } else if (oldProxyNamespace[osTmp]) {
+        // 否则仍然使用老版本的代理
+        proxysApis[finalNameSpace][osTmp] = oldProxyNamespace[osTmp];
+      }
+    });
+  }
+
+  function extendModule(moduleName, apis) {
+    if (!apis || !Array.isArray(apis)) {
+      return;
+    }
+    if (!quick[moduleName]) {
+      quick[moduleName] = [];
+    }
+    for (let i = 0, len = apis.length; i < len; i += 1) {
+      extendApi(moduleName, apis[i]);
+    }
+
+  }
+
+  quick.extendModule = extendModule;
+
+  quick.extendModule('ui', [{
+    namespace: 'alert',
+    os: ['h5'],
+    defaultParams: {
+      message: '',
+    },
+    runCode(message) {
+      alert('h5-' + message);
+    },
+  }]);
+
+  quick.extendModule('ui', [{
+    namespace: 'alert',
+    os: ['quick'],
+    defaultParams: {
+      message: '',
+    },
+    runCode(message) {
+      alert('quick-' + message);
+    },
+  }]);
+
+  quick.os.quick = true;
+  quick.ui.alert('hello'); // quick-hello
+//  quick.os.quick = false;
+//  quick.ui.alert('hello'); // h5-hello
+//  quick.ui.alert = 11; // 提示：不允许修改quick API
+</script>
+</body>
+</html>
